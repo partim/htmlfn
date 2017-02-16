@@ -9,9 +9,32 @@ pub trait AttributeValue {
     fn write_all<W: io::Write>(&self, wr: &mut W) -> io::Result<()>;
 }
 
-impl<T: AsRef<str>> AttributeValue for T {
+impl AttributeValue for str {
     fn write_all<W: io::Write>(&self, wr: &mut W) -> io::Result<()> {
-        wr.write_all(escape_str_attribute(self.as_ref()).as_bytes())
+        wr.write_all(escape_str_attribute(self).as_bytes())
+    }
+}
+
+impl AttributeValue for String {
+    fn write_all<W: io::Write>(&self, wr: &mut W) -> io::Result<()> {
+        wr.write_all(escape_str_attribute(self).as_bytes())
+    }
+}
+
+impl AttributeValue for bool {
+    fn write_all<W: io::Write>(&self, wr: &mut W) -> io::Result<()> {
+        if *self {
+            wr.write_all(b"true")
+        }
+        else {
+            wr.write_all(b"false")
+        }
+    }
+}
+
+impl AttributeValue for i64 {
+    fn write_all<W: io::Write>(&self, wr: &mut W) -> io::Result<()> {
+        write!(wr, "{}", self)
     }
 }
 
