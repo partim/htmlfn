@@ -1,3 +1,6 @@
+extern crate url;
+
+
 pub use self::core::Content;
 
 pub mod core;

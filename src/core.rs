@@ -51,7 +51,13 @@ impl<'a> Content for &'a str {
 
 impl Content for String {
     fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
-        write_escaped_pcdata(self.as_ref(), target)
+        Content::write(self.as_str(), target)
+    }
+}
+
+impl Content for url::Url {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        Content::write(self.as_str(), target)
     }
 }
 
@@ -102,6 +108,27 @@ impl AttributeValue for String {
     }
 }
 
+impl AttributeValue for url::Url {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        AttributeValue::write(self.as_str(), target)
+    }
+}
+
+
+//------------ Text ----------------------------------------------------------
+
+/// Something that can be both attribute data or content.
+///
+/// This is useful for functions that return something that can be used for
+/// both.
+pub trait Text: AttributeValue + Content { }
+
+impl Text for () { }
+impl<T1: Text, T2: Text> Text for (T1, T2) { }
+impl<T: Text> Text for Option<T> { }
+impl<'a> Text for &'a str { }
+impl Text for String { }
+impl Text for url::Url { }
 
 //------------ Attributes ----------------------------------------------------
 
