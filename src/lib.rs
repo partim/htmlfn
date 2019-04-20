@@ -1,3 +1,5 @@
+pub use self::core::Content;
+
 pub mod core;
 #[macro_use] pub mod macros;
 

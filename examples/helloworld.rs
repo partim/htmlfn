@@ -6,24 +6,24 @@ use htmlfn::core::Content;
 
 fn scaffolding<T: Content, C: Content>(title: T, core: C) -> impl Content {
     html!(
-        html {
-            head {
-                title () { title }
+        @html {
+            @head {
+                @title { title }
             }
-            body {
-                div(class="header") {
-                    ul {
-                        li {
-                            a(href="#") { "Home" }
+            @body() {
+                @div(class="header") {
+                    @ul() {
+                        @li() {
+                            @a(href="#") { "Home" }
                         }
-                        li () {
-                            a(href="#") { "About" }
+                        @li() {
+                            @a(href="#") { "About" }
                         }
                     }
                 }
-                div(class="core") { core }
-                div(class="footer") {
-                    p { "Copyright notice and whatnot" }
+                @div(class="core") { core }
+                @div(class="footer") {
+                    @p() { "Copyright notice and whatnot" }
                 }
             }
         }

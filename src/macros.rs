@@ -17,7 +17,7 @@ macro_rules! html {
 #[macro_export]
 macro_rules! elements {
     (
-        $tag:ident ( $( $attrs:tt )* ) {
+        @ $tag:ident ( $( $attrs:tt )* ) {
             $( $content:tt )*
         }
         $( $tail:tt )*
@@ -33,10 +33,54 @@ macro_rules! elements {
     };
 
     (
-        $tag:ident { $( $content:tt )* }
+        @ $tag:ident { $( $content:tt )* } $( $tail:tt )*
+    ) => {
+        (
+            $crate::core::Element::new(
+                stringify!($tag),
+                html_attrs!(),
+                elements!( $( $content )* )
+            ),
+            elements!( $( $tail )* )
+        )
+    };
+
+    (
+        @ $tag:ident ( $( $attrs:tt )* );
         $( $tail:tt )*
     ) => {
-        elements!($tag () { $( $content )* } $( $tail )*)
+        (
+            $crate::core::EmptyElement::new(
+                stringify!($tag),
+                html_attrs!( $( $attrs )* ),
+            ),
+            elements!( $( $tail )* )
+        )
+    };
+
+    (
+        @ $tag:ident
+        $( $tail:tt )*
+    ) => {
+        (
+            $crate::core::EmptyElement::new(
+                stringify!($tag),
+                html_attrs!(  ),
+            ),
+            elements!( $( $tail )* )
+        )
+    };
+
+    (
+        { $expr:expr } $( $tail:tt )*
+    ) => {
+        ($expr, elements!( $( $tail )* ))
+    };
+
+    (
+        $expr:expr; $( $tail:tt )*
+    )=> {
+        ($expr, elements!( $( $tail )* ))
     };
 
     ( $expr:expr ) => { $expr };

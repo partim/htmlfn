@@ -1,4 +1,4 @@
-use std::io;
+use std::{fmt, io};
 use super::escape::{write_escaped_attr, write_escaped_pcdata};
 
 
@@ -8,21 +8,18 @@ use super::escape::{write_escaped_attr, write_escaped_pcdata};
 ///
 /// This trait represents anything that can be transformed into HTML content,
 /// i.e., a sequence of nested elements and plain character data.
-pub trait Content {
-    /// Returns whether the content is empty.
-    ///
-    /// This is used to produce a correct empty tag.
-    fn is_empty(&self) -> bool;
-
+pub trait Content: Sized {
     /// Writes the content.
     fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error>;
+
+    fn into_string(self) -> String {
+        let mut res = Vec::new();
+        self.write(&mut res).unwrap();
+        String::from_utf8(res).unwrap()
+    }
 }
 
 impl Content for () {
-    fn is_empty(&self) -> bool {
-        true
-    }
-
     fn write<W: io::Write>(self, _target: &mut W) -> Result<(), io::Error> {
         Ok(())
     }
@@ -30,10 +27,6 @@ impl Content for () {
 
 impl<C1, C2> Content for (C1, C2)
 where C1: Content, C2: Content {
-    fn is_empty(&self) -> bool {
-        self.0.is_empty() && self.1.is_empty()
-    }
-
     fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
         self.0.write(target)?;
         self.1.write(target)
@@ -42,10 +35,6 @@ where C1: Content, C2: Content {
 
 
 impl<T: Content> Content for Option<T> {
-    fn is_empty(&self) -> bool {
-        self.is_some()
-    }
-
     fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
         match self {
             Some(writer) => writer.write(target),
@@ -55,12 +44,61 @@ impl<T: Content> Content for Option<T> {
 }
 
 impl<'a> Content for &'a str {
-    fn is_empty(&self) -> bool {
-        str::is_empty(self)
-    }
-
     fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
         write_escaped_pcdata(self, target)
+    }
+}
+
+impl Content for String {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        write_escaped_pcdata(self.as_ref(), target)
+    }
+}
+
+
+//------------ AttributeValue ------------------------------------------------
+
+/// The value of an attribute.
+///
+/// This trait represents anything that can be transformed into the content
+/// of an attribute of an HTML element.
+pub trait AttributeValue: Sized {
+    /// Writes the value.
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error>;
+}
+
+impl AttributeValue for () {
+    fn write<W: io::Write>(self, _target: &mut W) -> Result<(), io::Error> {
+        Ok(())
+    }
+}
+
+impl<V1, V2> AttributeValue for (V1, V2)
+where V1: AttributeValue, V2: AttributeValue {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        self.0.write(target)?;
+        self.1.write(target)
+    }
+}
+
+impl<T: AttributeValue> AttributeValue for Option<T> {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        match self {
+            Some(writer) => writer.write(target),
+            None => Ok(())
+        }
+    }
+}
+
+impl<'a> AttributeValue for &'a str {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        write_escaped_attr(self, target)
+    }
+}
+
+impl AttributeValue for String {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        AttributeValue::write(self.as_str(), target)
     }
 }
 
@@ -114,22 +152,38 @@ impl<T, A, C> Element<T, A, C> {
 }
 
 impl<T: AsRef<str>, A: Attributes, C: Content> Content for Element<T, A, C> {
-    fn is_empty(&self) -> bool {
-        false
-    }
-
     fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
         write!(target, "<{}", self.tag.as_ref())?;
         self.attrs.write(target)?;
-        if self.content.is_empty() {
-            write!(target, "/>")?;
-        }
-        else {
-            write!(target, ">")?;
-            self.content.write(target)?;
-            write!(target, "</{}>", self.tag.as_ref())?;
-        }
-        Ok(())
+        write!(target, ">")?;
+        self.content.write(target)?;
+        write!(target, "</{}>", self.tag.as_ref())
+    }
+}
+
+
+//------------ EmptyElement --------------------------------------------------
+
+pub struct EmptyElement<T, A> {
+    tag: T,
+    attrs: A,
+}
+
+impl<T, A> EmptyElement<T, A> {
+    /// Creates a new element from a tag, attributes, and content.
+    pub fn new(
+        tag: T,
+        attrs: A,
+    ) -> Self {
+        EmptyElement { tag, attrs }
+    }
+}
+
+impl<T: AsRef<str>, A: Attributes> Content for EmptyElement<T, A> {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        write!(target, "<{}", self.tag.as_ref())?;
+        self.attrs.write(target)?;
+        write!(target, ">")
     }
 }
 
@@ -149,10 +203,10 @@ impl<K, V> Attr<K, V> {
     }
 }
 
-impl<K: AsRef<str>, V: AsRef<str>> Attributes for Attr<K, V> {
+impl<K: AsRef<str>, V: AttributeValue> Attributes for Attr<K, V> {
     fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
         write!(target, " {}=\"", self.key.as_ref())?;
-        write_escaped_attr(self.value.as_ref(), target)?;
+        self.value.write(target)?;
         write!(target, "\"")
     }
 }
@@ -176,12 +230,43 @@ impl<C> Raw<C> {
 }
 
 impl<C: AsRef<str>> Content for Raw<C> {
-    fn is_empty(&self) -> bool {
-        self.content.as_ref().is_empty()
-    }
-
     fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
         target.write_all(self.content.as_ref().as_bytes())
+    }
+}
+
+
+//------------ Display -------------------------------------------------------
+
+pub fn display<T>(t: T) -> Display<T> {
+    Display(t)
+}
+
+#[derive(Clone, Debug)]
+pub struct Display<T>(T);
+
+impl<T: fmt::Display> Content for Display<T> {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        write!(target, "{}", self.0)
+    }
+}
+
+
+//------------ Iter ----------------------------------------------------------
+
+pub fn iter<I>(iter: I) -> Iter<I> {
+    Iter(iter)
+}
+
+pub struct Iter<I>(I);
+
+impl<I> Content for Iter<I>
+where I: Iterator, I::Item: Content {
+    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
+        for item in self.0 {
+            item.write(target)?;
+        }
+        Ok(())
     }
 }
 
