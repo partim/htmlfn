@@ -4,4 +4,5 @@ version = "0.1.0"
 authors = ["Martin Hoffmann <hn@nvnc.de>"]
 
 [dependencies]
+hyper = { version = "0.14", optional = true }
 url = "1.2"
