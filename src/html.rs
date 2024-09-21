@@ -1,12 +1,12 @@
 use crate::core::{
-    Attributes, AttributeValue, Element, EmptyElement, Content, Raw, Text,
-    TextElement, Tokens,
+    Attributes, AttributeValue, Element, EmptyElement, Content, Text,
+    TextElement, Tokens, raw,
 };
 
 //------------ doctype -------------------------------------------------------
 
 pub fn doctype() -> impl Content {
-    Raw::new("<!DOCTYPE html>")
+    raw("<!DOCTYPE html>")
 }
 
 //------------ Elements ------------------------------------------------------
@@ -38,6 +38,24 @@ macro_rules! standard {
                 id: impl AttributeValue, content: impl Content
             ) -> impl Content {
                 Element::new(stringify!($hx), attr::id(id), content)
+            }
+
+            pub fn id_class<'a>(
+                id: impl AttributeValue,
+                class: impl super::Tokens<'a>,
+                content: impl Content,
+            ) -> impl Content {
+                Element::new(
+                    stringify!($hx),
+                    (attr::id(id), attr::class(class)),
+                    content
+                )
+            }
+
+            pub fn title(
+                title: impl AttributeValue, content: impl Content
+            ) -> impl Content {
+                Element::new(stringify!($hx), attr::title(title), content)
             }
         }
     }
@@ -86,39 +104,7 @@ pub fn button(
 
 //--- div
 
-pub fn div(content: impl Content) -> impl Content {
-    Element::new("div", (), content)
-}
-
-pub mod div {
-    use super::*;
-
-    pub fn attrs(
-        attrs: impl Attributes,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("div", attrs, content)
-    }
-
-    pub fn id_class<'a>(
-        id: impl AttributeValue,
-        class: impl super::Tokens<'a>,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("div", (attr::id(id), attr::class(class)), content)
-    }
-
-    pub fn class<'a>(
-        class: impl super::Tokens<'a>,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("div", attr::class(class), content)
-    }
-
-    pub fn id(id: impl AttributeValue, content: impl Content) -> impl Content {
-        Element::new("div", attr::id(id), content)
-    }
-}
+standard!(div);
 
 //--- dl, dd, dt
 
@@ -128,31 +114,7 @@ standard!(dt);
 
 //--- footer
 
-pub fn footer(content: impl Content) -> impl Content {
-    Element::new("footer", (), content)
-}
-
-pub mod footer {
-    use super::*;
-
-    pub fn attrs(
-        attrs: impl Attributes,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("footer", attrs, content)
-    }
-
-    pub fn class<'a>(
-        class: impl super::Tokens<'a>,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("footer", attr::class(class), content)
-    }
-
-    pub fn id(id: impl AttributeValue, content: impl Content) -> impl Content {
-        Element::new("footer", attr::id(id), content)
-    }
-}
+standard!(footer);
 
 //--- form
 
@@ -177,31 +139,7 @@ pub fn head(content: impl Content) -> impl Content {
 
 //--- header
 
-pub fn header(content: impl Content) -> impl Content {
-    Element::new("header", (), content)
-}
-
-pub mod header {
-    use super::*;
-
-    pub fn attrs(
-        attrs: impl Attributes,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("header", attrs, content)
-    }
-
-    pub fn class<'a>(
-        class: impl super::Tokens<'a>,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("header", attr::class(class), content)
-    }
-
-    pub fn id(id: impl AttributeValue, content: impl Content) -> impl Content {
-        Element::new("header", attr::id(id), content)
-    }
-}
+standard!(header);
 
 //--- html
 
@@ -215,7 +153,9 @@ pub fn html(
 
 //--- img
 
-pub fn img(src: impl AttributeValue, alt: impl AttributeValue) -> impl Content {
+pub fn img(
+    src: impl AttributeValue, alt: impl AttributeValue
+) -> impl Content {
     EmptyElement::new("img", (attr::src(src), attr::alt(alt)))
 }
 
@@ -227,33 +167,15 @@ pub mod img{
     }
 }
 
+//--- input
+
+pub fn input(attrs: impl Attributes) -> impl Content {
+    EmptyElement::new("input", attrs)
+}
+
 //--- li
 
-pub fn li(content: impl Content) -> impl Content {
-    Element::new("li", (), content)
-}
-
-pub mod li {
-    use super::*;
-
-    pub fn attrs(
-        attrs: impl Attributes,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("li", attrs, content)
-    }
-
-    pub fn class<'a>(
-        class: impl super::Tokens<'a>,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("li", attr::class(class), content)
-    }
-
-    pub fn id(id: impl AttributeValue, content: impl Content) -> impl Content {
-        Element::new("li", attr::id(id), content)
-    }
-}
+standard!(li);
 
 //--- link
 
@@ -274,31 +196,7 @@ pub mod link {
 
 //--- main
 
-pub fn main(content: impl Content) -> impl Content {
-    Element::new("main", (), content)
-}
-
-pub mod main {
-    use super::*;
-
-    pub fn attrs(
-        attrs: impl Attributes,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("main", attrs, content)
-    }
-
-    pub fn class<'a>(
-        class: impl super::Tokens<'a>,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("main", attr::class(class), content)
-    }
-
-    pub fn id(id: impl AttributeValue, content: impl Content) -> impl Content {
-        Element::new("main", attr::id(id), content)
-    }
-}
+standard!(main);
 
 //--- meta
 
@@ -333,50 +231,15 @@ pub mod meta {
 
 //--- nav
 
-pub fn nav(content: impl Content) -> impl Content {
-    Element::new("nav", (), content)
-}
-
-pub mod nav {
-    use super::*;
-
-    pub fn class<'a>(
-        class: impl super::Tokens<'a>,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("nav", attr::class(class), content)
-    }
-
-    pub fn id(id: impl AttributeValue, content: impl Content) -> impl Content {
-        Element::new("nav", attr::id(id), content)
-    }
-}
+standard!(nav);
 
 //--- p
 
-pub fn p(content: impl Content) -> impl Content {
-    Element::new("p", (), content)
-}
+standard!(p);
 
 //--- span
 
-pub fn span(
-    attrs: impl Attributes,
-    content: impl Content
-) -> impl Content {
-    Element::new("span", attrs, content)
-}
-
-pub mod span {
-    use super::*;
-
-    pub fn class<'a>(
-        class: impl super::Tokens<'a>,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("span", attr::class(class), content)
-    }
-}
+standard!(span);
 
 //--- table
 
@@ -406,34 +269,22 @@ pub fn tt(
 
 //--- ul
 
-pub fn ul(content: impl Content) -> impl Content {
-    Element::new("ul", (), content)
-}
-
-pub mod ul {
-    use super::*;
-
-    pub fn class<'a>(
-        class: impl super::Tokens<'a>,
-        content: impl Content
-    ) -> impl Content {
-        Element::new("ul", attr::class(class), content)
-    }
-
-    pub fn id(id: impl AttributeValue, content: impl Content) -> impl Content {
-        Element::new("ul", attr::id(id), content)
-    }
-}
+standard!(ul);
 
 
 //------------ Attributes ----------------------------------------------------
 
 pub mod attr {
     use crate::core::{
-        Attr, AttributeName, Attributes, AttributeValue, Display, Target,
+        Attr, AttributeName, Attributes, AttributeValue, Target,
         Tokens,
     };
     use crate::escape;
+    use crate::utils::display;
+
+    pub fn action(value: impl AttributeValue) -> impl Attributes {
+        Attr::new("action", value)
+    }
 
     pub fn alt(value: impl AttributeValue) -> impl Attributes {
         Attr::new("alt", value)
@@ -467,19 +318,37 @@ pub mod attr {
         Attr::new("lang", lang)
     }
 
+    pub fn method(value: impl AttributeValue) -> impl Attributes {
+        Attr::new("method", value)
+    }
+
+    pub fn name(name: impl AttributeValue) -> impl Attributes {
+        Attr::new("name", name)
+    }
+
+    pub fn placeholder(placeholder: impl AttributeValue) -> impl Attributes {
+        Attr::new("placeholder", placeholder)
+    }
+
     pub fn src(value: impl AttributeValue) -> impl Attributes {
         Attr::new("src", value)
+    }
+
+    pub fn title(value: impl AttributeValue) -> impl Attributes {
+        Attr::new("title", value)
     }
 
     pub fn type_(value: impl AttributeValue) -> impl Attributes {
         Attr::new("type", value)
     }
 
-    pub fn width(value: u64) -> impl Attributes {
-        Attr::new("src", Display::new(value))
+    pub fn value(value: impl AttributeValue) -> impl Attributes {
+        Attr::new("value", value)
     }
 
-
+    pub fn width(value: u64) -> impl Attributes {
+        Attr::new("src", display(value))
+    }
 
 
     struct WsTokens<Value>(Value);

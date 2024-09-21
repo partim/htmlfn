@@ -46,6 +46,12 @@ impl Content for url::Url {
     }
 }
 
+impl Content for Target {
+    fn render_content(self, target: &mut Target) {
+        target.append_slice(self.as_ref())
+    }
+}
+
 
 //------------ AttributeName -------------------------------------------------
 
@@ -128,19 +134,27 @@ impl<'a, const N: usize> Tokens<'a> for [&'a str; N] {
     }
 }
 
+impl<'a> Tokens<'a> for Option<&'a str> {
+    type Iter = std::option::IntoIter<&'a str>;
+
+    fn iter_tokens(self) -> Self::Iter {
+        self.into_iter()
+    }
+}
+
 
 //------------ Text ----------------------------------------------------------
 
 /// Text.
-pub trait Text {
-    fn render_text(self, target: &mut Target);
+pub trait Text: Content {
 }
 
 impl<'a> Text for &'a str {
-    fn render_text(self, target: &mut Target) {
-        escape::render_pcdata(self, target)
-    }
 }
+
+impl Text for () { }
+
+impl<T: Text> Text for Option<T> { }
 
 
 //============ Types =========================================================
@@ -179,6 +193,12 @@ impl fmt::Write for Target {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         self.append_slice(s.as_bytes());
         Ok(())
+    }
+}
+
+impl AsRef<[u8]> for Target {
+    fn as_ref(&self) -> &[u8] {
+        self.buf.as_ref()
     }
 }
 
@@ -259,7 +279,7 @@ impl<T: AsRef<str>, A: Attributes, C: Text> Content for TextElement<T, A, C> {
         write!(target, "<{}", self.tag.as_ref());
         self.attrs.render_attrs(target);
         write!(target, ">");
-        self.content.render_text(target);
+        self.content.render_content(target);
         write!(target, "</{}>", self.tag.as_ref())
     }
 }
@@ -293,19 +313,16 @@ impl<K: AttributeName, V: AttributeValue> Attributes for Attr<K, V> {
 
 //------------ Raw -----------------------------------------------------------
 
-/// Raw string content.
+/// Renders string content without escaping.
 ///
-/// Text wrapped in this struct will not be escaped when written. You can use
-/// this for instance for the doctype at the beginning of a document.
-pub struct Raw<C> {
-    content: C
+/// You can use this for instance for the doctype at the beginning of a
+/// document.
+pub fn raw<C>(content: C) -> Raw<C> {
+    Raw { content }
 }
 
-impl<C> Raw<C> {
-    /// Creates new raw content.
-    pub fn new(content: C) -> Self {
-        Raw { content }
-    }
+pub struct Raw<C> {
+    content: C
 }
 
 impl<C: AsRef<str>> Content for Raw<C> {
@@ -313,73 +330,6 @@ impl<C: AsRef<str>> Content for Raw<C> {
         target.append_slice(self.content.as_ref().as_bytes())
     }
 }
-
-
-//------------ Display -------------------------------------------------------
-
-pub fn display<C>(content: C) -> Display<C> {
-    Display { content }
-}
-
-pub struct Display<C> {
-    content: C
-}
-
-impl<C> Display<C> {
-    pub fn new(content: C) -> Self {
-        Display { content }
-    }
-}
-
-impl<C: fmt::Display> Content for Display<C> {
-    fn render_content(self, target: &mut Target) {
-        escape::format_pcdata(format_args!("{}", self.content), target)
-    }
-}
-
-impl<C: fmt::Display> AttributeValue for Display<C> {
-    fn render_attr_value(self, target: &mut Target) {
-        escape::format_attr(format_args!("{}", self.content), target)
-    }
-}
-
-
-
-//------------ Iter ----------------------------------------------------------
-
-pub fn iter<I>(iter: I) -> Iter<I> {
-    Iter(iter)
-}
-
-pub struct Iter<I>(I);
-
-impl<I> Content for Iter<I>
-where I: Iterator, I::Item: Content {
-    fn render_content(self, target: &mut Target) {
-        for item in self.0 {
-            item.render_content(target);
-        }
-    }
-}
-
-
-/*
-//------------ Call ----------------------------------------------------------
-
-pub fn call<F>(op: F) -> Call<F> {
-    Call(op)
-}
-
-pub struct Call<F>(F);
-
-impl<F, C> Content for Call<F>
-where F: FnOnce() -> C, C: Content {
-    fn write<W: io::Write>(self, target: &mut W) -> Result<(), io::Error> {
-        (self.0)().write(target)
-    }
-}
-
-*/
 
 
 //============ Impl Traits for Tuples ========================================
@@ -655,5 +605,68 @@ render_tuple!(Content, render_content);
 render_tuple!(AttributeName, render_attr_name);
 render_tuple!(AttributeValue, render_attr_value);
 render_tuple!(Attributes, render_attrs);
-render_tuple!(Text, render_text);
+
+
+impl<
+    T0: Text
+> Text for (T0,) { }
+
+impl<
+    T0: Text, T1: Text
+> Text for (T0, T1,) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text,
+> Text for (T0, T1, T2) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text,
+> Text for (T0, T1, T2, T3) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text, T4: Text,
+> Text for (T0, T1, T2, T3, T4) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text, T4: Text,
+    T5: Text,
+> Text for (T0, T1, T2, T3, T4, T5) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text, T4: Text,
+    T5: Text, T6: Text,
+> Text for (T0, T1, T2, T3, T4, T5, T6) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text, T4: Text,
+    T5: Text, T6: Text, T7: Text,
+> Text for (T0, T1, T2, T3, T4, T5, T6, T7) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text, T4: Text,
+    T5: Text, T6: Text, T7: Text, T8: Text,
+> Text for (T0, T1, T2, T3, T4, T5, T6, T7, T8) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text, T4: Text,
+    T5: Text, T6: Text, T7: Text, T8: Text, T9: Text,
+> Text for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text, T4: Text,
+    T5: Text, T6: Text, T7: Text, T8: Text, T9: Text,
+    T10: Text,
+> Text for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text, T4: Text,
+    T5: Text, T6: Text, T7: Text, T8: Text, T9: Text,
+    T10: Text, T11: Text,
+> Text for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11) { }
+
+impl<
+    T0: Text, T1: Text, T2: Text, T3: Text, T4: Text,
+    T5: Text, T6: Text, T7: Text, T8: Text, T9: Text,
+    T10: Text, T11: Text, T12: Text,
+> Text for (T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12) { }
 
